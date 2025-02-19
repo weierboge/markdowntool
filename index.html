@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 格式转换器</title>
+    <style>
+        :root {
+            --system-gray: #86868b;
+            --system-blue: #0071e3;
+            --system-background: #ffffff;
+            --blur-background: rgba(255, 255, 255, 0.72);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+            line-height: 1.5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            padding: 20px;
+        }
+
+        .section {
+            background: var(--blur-background);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            font-size: 40px;
+            font-weight: 700;
+            text-align: center;
+            margin: 40px 0;
+            background: linear-gradient(135deg, #1d1d1f 0%, #434344 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+
+        .format-label {
+            font-size: 14px;
+            color: var(--system-gray);
+        }
+
+        .char-count {
+            font-size: 12px;
+            color: var(--system-gray);
+            margin-left: 8px;
+        }
+        
+        .char-count.near-limit {
+            color: #ff9500;
+        }
+        
+        .char-count.at-limit {
+            color: #ff3b30;
+        }
+
+        .editor-container {
+            position: relative;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor {
+            flex: 1;
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            font-family: -apple-system-monospaced, 'SF Mono', Menlo, monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            color: #1d1d1f;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+        }
+
+        .editor:focus {
+            outline: none;
+            box-shadow: inset 0 0 0 2px var(--system-blue);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            justify-content: center;
+        }
+
+        button {
+            background: var(--system-blue);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 980px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.2);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button.secondary {
+            background: rgba(0, 113, 227, 0.1);
+            color: var(--system-blue);
+        }
+
+        .success-message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(52, 199, 89, 0.9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 980px;
+            font-weight: 500;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translate(-50%, -100%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+
+        .word-count {
+            font-size: 12px;
+            color: var(--system-gray);
+            margin-left: 8px;
+        }
+
+        .switch-button {
+            background: none;
+            border: none;
+            padding: 4px;
+            cursor: pointer;
+            color: var(--system-blue);
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .switch-button:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Markdown 格式转换器</h1>
+    <div class="container">
+        <div class="section">
+            <div class="section-header">
+                <h2>输入区域</h2>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="format-label" id="left-format">Markdown</span>
+                    <span class="char-count" id="char-count">0/50000字符</span>
+                    <button class="switch-button" onclick="switchEditors()" title="切换输入输出">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3L4 7l4 4"/>
+                            <path d="M4 7h16"/>
+                            <path d="M16 21l4-4-4-4"/>
+                            <path d="M20 17H4"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <textarea id="left-editor" class="editor" placeholder="在此输入..." maxlength="50000"></textarea>
+        </div>
+        <div class="section">
+            <div class="section-header">
+                <h2>转换后的格式文本</h2>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="format-label" id="right-format">格式文本</span>
+                </div>
+            </div>
+            <textarea id="right-editor" class="editor" placeholder="转换后的内容..." readonly></textarea>
+        </div>
+    </div>
+    <div class="button-group">
+        <button onclick="copyOutput()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            复制输出内容
+        </button>
+        <button class="secondary" onclick="clearContent()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            清空内容
+        </button>
+    </div>
+    <div id="success-message" class="success-message">✓ 复制成功</div>
+
+    <script>
+        const leftEditor = document.getElementById('left-editor');
+        const rightEditor = document.getElementById('right-editor');
+        const successMessage = document.getElementById('success-message');
+        const leftFormatLabel = document.getElementById('left-format');
+        const rightFormatLabel = document.getElementById('right-format');
+        const charCount = document.getElementById('char-count');
+        const CHAR_LIMIT = 50000;
+        let updateTimeout = null;
+
+        let isMarkdownToText = true;
+
+        // 使用防抖进行实时转换，避免频繁更新
+        leftEditor.addEventListener('input', () => {
+            clearTimeout(updateTimeout);
+            updateTimeout = setTimeout(() => {
+                updateOutput();
+                updateCharCount();
+            }, 300); // 300ms 延迟
+        });
+
+        // 分批处理大量文本
+        function updateOutput() {
+            const input = leftEditor.value;
+            
+            // 如果文本超过1万字符，使用分批处理
+            if (input.length > 10000) {
+                requestAnimationFrame(() => {
+                    const output = isMarkdownToText ? 
+                        convertMarkdownToPlainText(input) : 
+                        convertPlainTextToMarkdown(input);
+                    rightEditor.value = output;
+                });
+            } else {
+                // 短文本直接处理
+                const output = isMarkdownToText ? 
+                    convertMarkdownToPlainText(input) : 
+                    convertPlainTextToMarkdown(input);
+                rightEditor.value = output;
+            }
+        }
+
+        function convertMarkdownToPlainText(markdown) {
+            let text = markdown;
+            
+            // 移除水平分隔线
+            text = text.replace(/^-{3,}$/gm, '');
+            
+            // 修改标题格式，统一使用单层括号
+            text = text.replace(/^(#{1,6})\s+(.+)$/gm, (match, hashes, content) => {
+                content = content.replace(/【|】/g, '');
+                return `【${content}】`;
+            });
+            
+            // 保留列表格式，移除缩进和符号
+            let listCounter = 0;
+            text = text.replace(/^(\s*)-\s+(.+)$/gm, '$2'); // 无序列表直接显示内容
+            text = text.replace(/^(\s*)\d+\.\s+(.+)$/gm, (match, indent, content) => {
+                listCounter++;
+                return `${listCounter}. ${content}`; // 有序列表保留序号
+            });
+            
+            // 保留引用格式
+            text = text.replace(/^>\s+(.+)$/gm, '┃ $1');
+            
+            // 转换链接为带下划线的文本
+            text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '_$1_ ($2)');
+            
+            // 转换粗体为大写
+            text = text.replace(/\*\*([^*]+)\*\*/g, (match, content) => {
+                content = content.replace(/【|】/g, '');
+                return `【${content}】`;
+            });
+            
+            // 转换斜体为下划线
+            text = text.replace(/\*([^*]+)\*/g, '_$1_');
+            
+            // 转换代码块为特殊格式
+            text = text.replace(/```([\s\S]*?)```/g, '┏━━━━━━━━━━━━\n$1\n┗━━━━━━━━━━━━');
+            
+            // 转换行内代码
+            text = text.replace(/`([^`]+)`/g, '「$1」');
+            
+            // 保留段落格式，不添加缩进
+            text = text.replace(/\n{2,}/g, '\n\n');
+            
+            return text;
+        }
+
+        function convertPlainTextToMarkdown(text) {
+            let markdown = text;
+            
+            // 转换标题格式，确保只处理单层括号
+            markdown = markdown.replace(/【([^】]+)】/g, '# $1');
+            
+            // 转换列表格式，保持编号连续性
+            let listCounter = 0;
+            markdown = markdown.replace(/^(\s*)(\d+)\.\s+(.+)$/gm, (match, indent, num, content) => {
+                listCounter++;
+                return `${indent}${listCounter}. ${content}`;
+            });
+            
+            // 转换引用格式
+            markdown = markdown.replace(/^┃\s+(.+)$/gm, '> $1');
+            
+            // 转换带下划线的链接文本
+            markdown = markdown.replace(/_([^_]+)_\s+\((\S+)\)/g, '[$1]($2)');
+            
+            // 转换大写包围的文本为粗体
+            markdown = markdown.replace(/【([^】]+)】/g, '**$1**');
+            
+            // 转换下划线文本为斜体
+            markdown = markdown.replace(/_([^_]+)_/g, '*$1*');
+            
+            // 转换特殊格式的代码块
+            markdown = markdown.replace(/┏━━━━━━━━━━━━\n([\s\S]*?)\n┗━━━━━━━━━━━━/g, '```\n$1\n```');
+            
+            // 转换行内代码
+            markdown = markdown.replace(/「([^」]+)」/g, '`$1`');
+            
+            return markdown;
+        }
+
+        function switchEditors() {
+            isMarkdownToText = !isMarkdownToText;
+            
+            // 更新标签
+            leftFormatLabel.textContent = isMarkdownToText ? 'Markdown' : '格式文本';
+            rightFormatLabel.textContent = isMarkdownToText ? '格式文本' : 'Markdown';
+            
+            // 交换内容
+            const temp = leftEditor.value;
+            leftEditor.value = rightEditor.value;
+            rightEditor.value = temp;
+            
+            // 更新只读状态
+            rightEditor.readOnly = true;
+            leftEditor.readOnly = false;
+            
+            // 更新占位符
+            leftEditor.placeholder = '在此输入...';
+            rightEditor.placeholder = '转换后的内容...';
+            
+            // 更新字符计数
+            updateCharCount();
+        }
+
+        function copyOutput() {
+            const textToCopy = rightEditor.value;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showSuccessMessage();
+            }).catch(err => {
+                console.error('复制失败:', err);
+            });
+        }
+
+        function showSuccessMessage() {
+            successMessage.style.display = 'flex';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 2000);
+        }
+
+        function clearContent() {
+            leftEditor.value = '';
+            rightEditor.value = '';
+        }
+
+        function updateCharCount() {
+            const count = leftEditor.value.length;
+            charCount.textContent = `${count}/${CHAR_LIMIT}字符`;
+            
+            // 更新计数器颜色
+            if (count >= CHAR_LIMIT) {
+                charCount.className = 'char-count at-limit';
+            } else if (count >= CHAR_LIMIT * 0.9) {
+                charCount.className = 'char-count near-limit';
+            } else {
+                charCount.className = 'char-count';
+            }
+        }
+
+        // 添加示例文本
+        const defaultText = `这是一个将 Markdown 格式与格式文本互相转换的工具。格式文本保留了文档的结构和样式，便于阅读和编辑。
+
+## 1. 文本样式
+- **粗体文本** 会显示为【文本】
+- *斜体文本* 会显示为_文本_
+- \`代码\` 会显示为「代码」
+
+## 2. 链接和引用
+- [示例链接](https://example.com) 会显示为 _示例链接_ (https://example.com)
+
+> 这是一段引用文本
+> 会显示为带有特殊符号的格式
+
+## 3. 列表展示
+1. 第一个列表项
+2. 第二个列表项
+   - 子列表项 1
+   - 子列表项 2
+
+## 4. 代码块
+\`\`\`
+function example() {
+    console.log("示例代码");
+}
+\`\`\`
+
+可以点击上方的切换按钮，在 Markdown 和格式文本之间互相转换。`;
+
+        // 确保页面加载完成后执行初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            leftEditor.value = defaultText;
+            updateOutput();
+            updateCharCount();
+        });
+
+        // 初始转换
+        updateOutput();
+        updateCharCount();
+    </script>
+</body>
+</html>
