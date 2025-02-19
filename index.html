@@ -202,6 +202,100 @@
         .switch-button:hover {
             transform: scale(1.1);
         }
+        /* 在原有样式基础上新增/修改以下内容 */
+
+.container {
+    grid-template-columns: 1fr; /* 移动端默认单列布局 */
+    padding: 10px; /* 减少边距 */
+    gap: 16px; /* 缩小间距 */
+}
+
+@media (min-width: 768px) { /* 平板及以上保持双栏 */
+    .container {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 20px;
+        gap: 24px;
+    }
+}
+
+.section {
+    height: auto; /* 改为自适应高度 */
+    min-height: 400px; /* 设置最小高度 */
+    padding: 16px; /* 减少内边距 */
+}
+
+h1 {
+    font-size: 32px; /* 缩小标题 */
+    margin: 24px 0; /* 调整间距 */
+}
+
+.editor {
+    font-size: 14px; /* 调小字体 */
+    padding: 12px; /* 减少内边距 */
+}
+
+.button-group {
+    flex-direction: column; /* 移动端垂直排列按钮 */
+    gap: 8px;
+    width: 90%; /* 控制宽度 */
+    margin: 16px auto; /* 居中排列 */
+}
+
+button {
+    width: 100%; /* 全宽按钮 */
+    justify-content: center; /* 居中文字 */
+}
+
+/* 针对小尺寸手机的优化 */
+@media (max-width: 480px) {
+    body {
+        padding: 10px; /* 减少全局边距 */
+    }
+    
+    .section {
+        border-radius: 12px; /* 调整圆角 */
+        min-height: 300px;
+    }
+    
+    h1 {
+        font-size: 24px;
+        margin: 16px 0;
+    }
+    
+    h2 {
+        font-size: 18px; /* 缩小二级标题 */
+    }
+    
+    .format-label {
+        font-size: 12px; /* 调小标签文字 */
+    }
+    
+    .char-count {
+        font-size: 10px; /* 调小计数器 */
+    }
+}
+
+/* 平板设备优化 */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .container {
+        max-width: 90%; /* 增加边距 */
+    }
+    
+    .section {
+        min-height: 500px; /* 调整高度 */
+    }
+}
+
+/* 横屏手机优化 */
+@media (max-width: 850px) and (orientation: landscape) {
+    .section {
+        min-height: 300px; /* 减少高度 */
+    }
+    
+    .editor {
+        font-size: 12px; /* 调小字体 */
+    }
+}
     </style>
 </head>
 <body>
