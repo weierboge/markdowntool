@@ -274,23 +274,27 @@
         function convertMarkdownToPlainText(markdown) {
             const lines = markdown.split('\n');
             const processedLines = lines.map(line => {
-                // 处理子列表项，只保留缩进
+                // 先处理粗体和斜体
+                line = line
+                    .replace(/(\*\*|__)(.*?)\1/g, '$2')
+                    .replace(/(\*|_)(.*?)\1/g, '$2');
+
+                // 然后处理列表项
                 if (/^\s{3,}[-*+]\s+/.test(line)) {
                     const indent = line.match(/^\s+/)[0];
                     const content = line.replace(/^(\s*)[-*+]\s+/, '').trim();
                     return `${indent}${content}`;
                 }
-                // 处理所有列表项，包括顶级列表项
                 if (/^[-*+]\s+/.test(line)) {
                     const content = line.replace(/^[-*+]\s+/, '').trim();
                     return content;
                 }
+
+                // 最后处理其他格式
                 return line
                     .replace(/^(\s*)\d+\.\s+/, '$1')
                     .replace(/^#+\s+/, '')
                     .replace(/^>\s*(.+)$/, '[$1]')
-                    .replace(/(\*\*|__)(.*?)\1/g, '$2')
-                    .replace(/(\*|_)(.*?)\1/g, '$2')
                     .replace(/`([^`]+)`/g, '[代码]')
                     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)')
                     .replace(/^-{3,}$/, '');
