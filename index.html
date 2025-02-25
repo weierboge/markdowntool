@@ -272,15 +272,30 @@
         }
 
         function convertMarkdownToPlainText(markdown) {
-            return markdown
-                .replace(/(\*\*|__)(.*?)\1/g, '$2')
-                .replace(/(\*|_)(.*?)\1/g, '$2')
-                .replace(/$$([^$$]+)\]$([^)]+)$/g, '$1 ($2)')
-                .replace(/^-\s+/gm, '')
-                .replace(/^\d+\.\s+/gm, '')
-                .replace(/^#+\s+/gm, '')
-                .replace(/```[\s\S]*?```/g, '')
-                .replace(/`([^`]+)`/g, '$1')
+            let counter = 1;
+            const lines = markdown.split('\n');
+            const processedLines = lines.map(line => {
+                if (/^\s{3,}[-*+]\s+/.test(line)) {
+                    // 处理子列表项，添加序号并保持原始内容
+                    const indent = line.match(/^\s+/)[0];
+                    const content = line.replace(/^(\s*)[-*+]\s+/, '').trim();
+                    return `${indent}${counter++}. ${content}`;
+                }
+                counter = 1; // 重置计数器
+                return line
+                    .replace(/^(\s*)[-*+]\s+/, '$1')
+                    .replace(/^(\s*)\d+\.\s+/, '$1')
+                    .replace(/^#+\s+/, '')
+                    .replace(/^>\s*(.+)$/, '[$1]')
+                    .replace(/(\*\*|__)(.*?)\1/g, '$2')
+                    .replace(/(\*|_)(.*?)\1/g, '$2')
+                    .replace(/`([^`]+)`/g, '$1')
+                    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)');
+            });
+
+            return processedLines
+                .join('\n')
+                .replace(/```[\s\S]*?```/g, '[代码块]')
                 .replace(/(【|】){2,}/g, '$1')
                 .replace(/\n{3,}/g, '\n\n');
         }
@@ -319,8 +334,8 @@
 ## 3. 列表展示
 1. 第一个列表项
 2. 第二个列表项
-   - 子列表项 1
-   - 子列表项 2
+   - 子列表项1
+   - 子列表项2
 
 ## 4. 代码块
 \`\`\`
