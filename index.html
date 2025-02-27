@@ -375,7 +375,6 @@
 
             return processedLines
                 .join('\n')
-                .replace(/```[\s\S]*?```/g, '[代码块]')
                 .replace(/(【|】){2,}/g, '$1')
                 .replace(/\n{3,}/g, '\n\n')
                 .replace(/\n-{3,}\n/g, '\n\n');
