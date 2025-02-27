@@ -125,7 +125,7 @@
             gap: 12px;
             margin-top: 16px;
             justify-content: center;
-            margin-bottom: 40px; /* 添加底部间距 */
+            margin-bottom: 40px; /* 保留按钮组和个人介绍的间距 */
         }
 
         button {
@@ -205,9 +205,9 @@
 
             .button-group {
                 flex-direction: column;
-                width: 90%;
+                width: auto; /* 恢复按钮组宽度 */
                 margin: 16px auto;
-                margin-bottom: 40px; /* 响应式布局下也添加底部间距 */
+                margin-bottom: 40px;
             }
 
             button {
@@ -230,7 +230,7 @@
             max-width: 680px;
             margin: 0 auto;
             text-align: center;
-            margin-top: 40px; /* 添加顶部间距 */
+            margin-top: 40px; /* 保留个人介绍顶部间距 */
         }
 
         .personal-intro p {
