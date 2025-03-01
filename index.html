@@ -260,6 +260,31 @@
             transform: scale(0.96);
         }
 
+        /* 添加切换按钮样式 */
+        .switch-button {
+            background: rgba(134, 134, 139, 0.2);
+            color: var(--system-gray);
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .switch-button:hover {
+            background: rgba(134, 134, 139, 0.3);
+            transform: scale(1.05);
+        }
+
+        .switch-button:active {
+            transform: scale(0.95);
+        }
+
         @media (prefers-color-scheme: dark) {
             body {
                 background: #000;
@@ -283,8 +308,13 @@
             <div class="section-header">
                 <h2>输入区域</h2>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="format-label">Markdown</span>
+                    <span class="format-label" id="left-format-label">Markdown</span>
                     <span class="char-count" id="char-count">0/50000字符</span>
+                    <button id="switch-button" class="switch-button" title="切换输入/输出">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
             <textarea id="left-editor" class="editor" placeholder="在此输入..." maxlength="50000"></textarea>
@@ -292,7 +322,7 @@
         <div class="section">
             <div class="section-header">
                 <h2>转换后的格式文本</h2>
-                <span class="format-label">格式文本</span>
+                <span class="format-label" id="right-format-label">格式文本</span>
             </div>
             <textarea id="right-editor" class="editor" placeholder="转换后的内容..." readonly></textarea>
         </div>
@@ -328,8 +358,12 @@
         const rightEditor = document.getElementById('right-editor');
         const successMessage = document.getElementById('success-message');
         const charCount = document.getElementById('char-count');
+        const switchButton = document.getElementById('switch-button');
+        const leftFormatLabel = document.getElementById('left-format-label');
+        const rightFormatLabel = document.getElementById('right-format-label');
         const CHAR_LIMIT = 50000;
         let updateTimeout = null;
+        let mode = 'markdown-to-text'; // 默认模式：markdown转文本
 
         leftEditor.addEventListener('input', () => {
             clearTimeout(updateTimeout);
@@ -339,11 +373,41 @@
             }, 300);
         });
 
+        // 添加切换按钮事件监听
+        switchButton.addEventListener('click', () => {
+            // 切换模式
+            if (mode === 'markdown-to-text') {
+                mode = 'text-to-markdown';
+                leftFormatLabel.textContent = '格式文本';
+                rightFormatLabel.textContent = 'Markdown';
+                rightEditor.removeAttribute('readonly');
+                leftEditor.setAttribute('readonly', 'readonly');
+            } else {
+                mode = 'markdown-to-text';
+                leftFormatLabel.textContent = 'Markdown';
+                rightFormatLabel.textContent = '格式文本';
+                leftEditor.removeAttribute('readonly');
+                rightEditor.setAttribute('readonly', 'readonly');
+            }
+            
+            // 交换内容
+            const temp = leftEditor.value;
+            leftEditor.value = rightEditor.value;
+            rightEditor.value = temp;
+            
+            updateCharCount();
+        });
+
         function updateOutput() {
             const input = leftEditor.value;
-            rightEditor.value = convertMarkdownToPlainText(input);
+            if (mode === 'markdown-to-text') {
+                rightEditor.value = convertMarkdownToPlainText(input);
+            } else {
+                rightEditor.value = convertPlainTextToMarkdown(input);
+            }
         }
 
+        // 保留原有的Markdown到文本的转换函数
         function convertMarkdownToPlainText(markdown) {
             const lines = markdown.split('\n');
             const processedLines = lines.map(line => {
@@ -378,6 +442,184 @@
                 .replace(/(【|】){2,}/g, '$1')
                 .replace(/\n{3,}/g, '\n\n')
                 .replace(/\n-{3,}\n/g, '\n\n');
+        }
+
+        // 添加文本到Markdown的转换函数
+        function convertPlainTextToMarkdown(text) {
+            // 分析文本结构
+            const lines = text.split('\n');
+            const processedLines = [];
+            let inCodeBlock = false;
+            let codeBlockIndent = '';
+            
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                const trimmedLine = line.trim();
+                
+                // 检测代码块
+                if (detectCodeBlock(lines, i)) {
+                    if (!inCodeBlock) {
+                        inCodeBlock = true;
+                        codeBlockIndent = line.match(/^\s*/)[0];
+                        processedLines.push('```');
+                        processedLines.push(line.substring(codeBlockIndent.length));
+                    } else {
+                        processedLines.push(line.substring(codeBlockIndent.length));
+                    }
+                    continue;
+                } else if (inCodeBlock) {
+                    inCodeBlock = false;
+                    processedLines.push('```');
+                }
+                
+                // 检测标题
+                if (detectHeading(line, i > 0 ? lines[i-1] : '')) {
+                    const level = detectHeadingLevel(line, i > 0 ? lines[i-1] : '');
+                    processedLines.push(`${'#'.repeat(level)} ${trimmedLine}`);
+                    continue;
+                }
+                
+                // 检测列表项
+                if (detectListItem(line)) {
+                    const indent = line.match(/^\s*/)[0];
+                    const content = line.substring(indent.length);
+                    
+                    // 根据缩进级别确定列表类型
+                    const indentLevel = Math.floor(indent.length / 2);
+                    if (indentLevel > 0) {
+                        processedLines.push(`${indent}  - ${content}`);
+                    } else {
+                        processedLines.push(`- ${content}`);
+                    }
+                    continue;
+                }
+                
+                // 检测引用
+                if (trimmedLine.startsWith('[') && trimmedLine.endsWith(']')) {
+                    processedLines.push(`> ${trimmedLine.substring(1, trimmedLine.length - 1)}`);
+                    continue;
+                }
+                
+                // 检测链接
+                line = line.replace(/([^\s]+)\s+\(([^)]+)\)/g, '[$1]($2)');
+                
+                // 检测代码片段
+                line = line.replace(/\[代码\]/g, '`代码`');
+                
+                processedLines.push(line);
+            }
+            
+            if (inCodeBlock) {
+                processedLines.push('```');
+            }
+            
+            return processedLines.join('\n');
+        }
+        
+        // 检测代码块的函数
+        function detectCodeBlock(lines, currentIndex) {
+            const line = lines[currentIndex].trim();
+            
+            // 检测可能的代码特征
+            const codePatterns = [
+                /^(function|class|if|for|while|switch|var|let|const)\s/,
+                /^import\s+.*\s+from\s+/,
+                /^export\s+/,
+                /^return\s+/,
+                /^[a-zA-Z0-9_$]+\s*\([^)]*\)\s*{/,
+                /^[a-zA-Z0-9_$]+\s*=\s*function\s*\(/,
+                /^[a-zA-Z0-9_$]+\s*=\s*\([^)]*\)\s*=>/,
+                /^[a-zA-Z0-9_$]+\s*:\s*function\s*\(/,
+                /^<[a-zA-Z][^>]*>.*<\/[a-zA-Z][^>]*>$/,
+                /^[a-zA-Z0-9_$]+\s*\.\s*[a-zA-Z0-9_$]+\s*\(/,
+                /^[{}[\];]$/
+            ];
+            
+            // 检查是否匹配代码模式
+            for (const pattern of codePatterns) {
+                if (pattern.test(line)) {
+                    return true;
+                }
+            }
+            
+            // 检查上下文
+            if (currentIndex > 0 && currentIndex < lines.length - 1) {
+                const prevLine = lines[currentIndex - 1].trim();
+                const nextLine = lines[currentIndex + 1].trim();
+                
+                // 如果前后行都是代码特征，当前行很可能也是代码
+                let prevIsCode = false;
+                let nextIsCode = false;
+                
+                for (const pattern of codePatterns) {
+                    if (pattern.test(prevLine)) prevIsCode = true;
+                    if (pattern.test(nextLine)) nextIsCode = true;
+                }
+                
+                if (prevIsCode && nextIsCode) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        // 检测标题的函数
+        function detectHeading(line, prevLine) {
+            const trimmedLine = line.trim();
+            
+            // 检查是否是短句且没有标点符号结尾
+            if (trimmedLine.length > 0 && trimmedLine.length < 100 && 
+                !/[.。,，;；:：!！?？]$/.test(trimmedLine)) {
+                
+                // 检查是否有数字编号开头 (如 "1. 标题")
+                if (/^\d+[\.\s]+\w+/.test(trimmedLine)) {
+                    return true;
+                }
+                
+                // 检查是否是单独的一行，前后有空行
+                if (prevLine.trim() === '') {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        // 检测标题级别的函数
+        function detectHeadingLevel(line, prevLine) {
+            const trimmedLine = line.trim();
+            
+            // 根据数字编号判断级别
+            if (/^\d+\./.test(trimmedLine)) {
+                const match = trimmedLine.match(/^(\d+)\./);
+                if (match) {
+                    const num = parseInt(match[1]);
+                    if (num === 1) return 2; // 一级编号通常是二级标题
+                    if (num >= 2) return 3; // 二级及以上编号通常是三级标题
+                }
+            }
+            
+            // 默认作为二级标题
+            return 2;
+        }
+        
+        // 检测列表项的函数
+        function detectListItem(line) {
+            const trimmedLine = line.trim();
+            
+            // 检查是否是短句
+            if (trimmedLine.length > 0 && trimmedLine.length < 200) {
+                // 检查是否有缩进
+                const indent = line.match(/^\s*/)[0].length;
+                
+                // 如果有缩进或者是简短的句子，可能是列表项
+                if (indent > 0 || trimmedLine.length < 100) {
+                    return true;
+                }
+            }
+            
+            return false;
         }
 
         function copyOutput() {
