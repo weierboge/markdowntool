@@ -1,9 +1,7 @@
 name: Build HTML to EXE
 
 on:
-  # 支持手动触发工作流
   workflow_dispatch:
-  # 也保留代码推送到 main 分支时触发
   push:
     branches:
       - main
@@ -28,7 +26,7 @@ jobs:
         run: npm run package
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: html-exe
           path: dist/*.exe
