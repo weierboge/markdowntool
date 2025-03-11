@@ -1,32 +1,28 @@
 name: Build HTML to EXE
 
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '14'
 
-      - name: Install dependencies
-        run: npm install
+    - name: Install dependencies
+      run: npm install
 
-      - name: Package to EXE
-        run: npm run package
+    - name: Build project
+      run: npm run build
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: html-exe
-          path: dist/*.exe
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-artifacts
+        path: path/to/build/artifacts
