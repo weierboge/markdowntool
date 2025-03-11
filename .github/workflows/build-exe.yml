@@ -1,0 +1,34 @@
+name: Build HTML to EXE
+
+on:
+  # 支持手动触发工作流
+  workflow_dispatch:
+  # 也保留代码推送到 main 分支时触发
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Package to EXE
+        run: npm run package
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: html-exe
+          path: dist/*.exe
