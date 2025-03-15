@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Markdown 格式转换器</title>
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
@@ -40,16 +40,20 @@
             color: #1d1d1f;
             line-height: 1.5;
             padding: 10px;
+            width: 100%; /* 确保body占满整个视口宽度 */
+            max-width: 100%; /* 防止溢出 */
+            overflow-x: hidden; /* 防止水平滚动 */
         }
 
         .container {
             max-width: 1200px;
-            width: 95%; /* 添加这一行，确保在各种屏幕上都能占据足够宽度 */
+            width: 95%; /* 使用百分比宽度而不是固定宽度 */
             margin: 0 auto;
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 24px;
             padding: 20px;
+            box-sizing: border-box; /* 确保padding不会增加容器宽度 */
         }
 
         .section {
@@ -71,6 +75,7 @@
             text-align: center;
             margin: 40px 0;
             background: linear-gradient(135deg, #1d1d1f 0%, #434344 100%);
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -204,6 +209,7 @@
                 grid-template-columns: 1fr;
                 padding: 10px;
                 gap: 16px;
+                width: 100%; /* 在小屏幕上占满全宽 */
             }
 
             .section {
@@ -572,9 +578,13 @@
             
             let result = processedLines.join('\n');
             
-            // 恢复所有数学公式
-            mathExpressions.forEach(({placeholder, content}) => {
-                result = result.replace(placeholder, content);
+            // 恢复所有数学公式 - 修复这里的变量名错误
+            mathBlocks.forEach(item => {
+                result = result.replace(item.id, item.content);
+            });
+            
+            mathInlines.forEach(item => {
+                result = result.replace(item.id, item.content);
             });
             
             return result;
