@@ -3,10 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="google-site-verification" content="i9AB-1nsQ-Yzgew2cZVhczP-TlC0v3PWDZA6alWJZsk" />
     <title>Markdown 格式转换器</title>
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <!-- 添加MathJax库 -->
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$']],
+        displayMath: [['$$', '$$']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         :root {
             --system-gray: #86868b;
@@ -302,15 +314,6 @@
         }
     </style>
 </head>
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-7RK5JRF9TD"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-7RK5JRF9TD');
-</script>
 <body>
     <h1>Markdown 格式转换器</h1>
     <div class="container">
@@ -408,17 +411,29 @@
             updateCharCount();
         });
 
-        function updateOutput() {
-            const input = leftEditor.value;
-            if (mode === 'markdown-to-text') {
-                rightEditor.value = convertMarkdownToPlainText(input);
-            } else {
-                rightEditor.value = convertPlainTextToMarkdown(input);
-            }
-        }
-
-        // 保留原有的Markdown到文本的转换函数
+        // 修改convertMarkdownToPlainText函数，完善对数学公式的处理
         function convertMarkdownToPlainText(markdown) {
+            // 创建一个临时数组来存储数学公式
+            let mathBlocks = [];
+            let mathInlines = [];
+            let blockIndex = 0;
+            let inlineIndex = 0;
+            
+            // 先处理块级公式 - 使用非贪婪匹配
+            markdown = markdown.replace(/(\$\$)([\s\S]+?)(\$\$)/g, function(match, p1, p2, p3) {
+                const id = `MATHBLOCK${blockIndex++}`;
+                mathBlocks.push({ id, content: match });
+                return id;
+            });
+            
+            // 再处理行内公式 - 使用非贪婪匹配
+            markdown = markdown.replace(/(\$)([^\$\n]+?)(\$)/g, function(match, p1, p2, p3) {
+                const id = `MATHINLINE${inlineIndex++}`;
+                mathInlines.push({ id, content: match });
+                return id;
+            });
+            
+            // 进行常规的Markdown转换
             const lines = markdown.split('\n');
             const processedLines = lines.map(line => {
                 // 先处理粗体和斜体
@@ -436,7 +451,7 @@
                     const content = line.replace(/^[-*+]\s+/, '').trim();
                     return content;
                 }
-
+                
                 // 最后处理其他格式
                 return line
                     .replace(/^(\s*)\d+\.\s+/, '$1')
@@ -447,15 +462,46 @@
                     .replace(/^-{3,}$/, '');
             });
 
-            return processedLines
+            let result = processedLines
                 .join('\n')
                 .replace(/(【|】){2,}/g, '$1')
                 .replace(/\n{3,}/g, '\n\n')
                 .replace(/\n-{3,}\n/g, '\n\n');
+                
+            // 恢复数学公式
+            mathBlocks.forEach(item => {
+                result = result.replace(item.id, item.content);
+            });
+            
+            mathInlines.forEach(item => {
+                result = result.replace(item.id, item.content);
+            });
+            
+            return result;
         }
 
-        // 添加文本到Markdown的转换函数
+        // 同样修改convertPlainTextToMarkdown函数
         function convertPlainTextToMarkdown(text) {
+            // 创建一个临时数组来存储数学公式
+            let mathBlocks = [];
+            let mathInlines = [];
+            let blockIndex = 0;
+            let inlineIndex = 0;
+            
+            // 先处理块级公式
+            text = text.replace(/(\$\$)([\s\S]+?)(\$\$)/g, function(match, p1, p2, p3) {
+                const id = `MATHBLOCK${blockIndex++}`;
+                mathBlocks.push({ id, content: match });
+                return id;
+            });
+            
+            // 再处理行内公式
+            text = text.replace(/(\$)([^\$\n]+?)(\$)/g, function(match, p1, p2, p3) {
+                const id = `MATHINLINE${inlineIndex++}`;
+                mathInlines.push({ id, content: match });
+                return id;
+            });
+            
             // 分析文本结构
             const lines = text.split('\n');
             const processedLines = [];
@@ -523,113 +569,36 @@
                 processedLines.push('```');
             }
             
-            return processedLines.join('\n');
+            let result = processedLines.join('\n');
+            
+            // 恢复所有数学公式
+            mathExpressions.forEach(({placeholder, content}) => {
+                result = result.replace(placeholder, content);
+            });
+            
+            return result;
         }
         
-        // 检测代码块的函数
-        function detectCodeBlock(lines, currentIndex) {
-            const line = lines[currentIndex].trim();
-            
-            // 检测可能的代码特征
-            const codePatterns = [
-                /^(function|class|if|for|while|switch|var|let|const)\s/,
-                /^import\s+.*\s+from\s+/,
-                /^export\s+/,
-                /^return\s+/,
-                /^[a-zA-Z0-9_$]+\s*\([^)]*\)\s*{/,
-                /^[a-zA-Z0-9_$]+\s*=\s*function\s*\(/,
-                /^[a-zA-Z0-9_$]+\s*=\s*\([^)]*\)\s*=>/,
-                /^[a-zA-Z0-9_$]+\s*:\s*function\s*\(/,
-                /^<[a-zA-Z][^>]*>.*<\/[a-zA-Z][^>]*>$/,
-                /^[a-zA-Z0-9_$]+\s*\.\s*[a-zA-Z0-9_$]+\s*\(/,
-                /^[{}[\];]$/
-            ];
-            
-            // 检查是否匹配代码模式
-            for (const pattern of codePatterns) {
-                if (pattern.test(line)) {
-                    return true;
-                }
+        // 添加MathJax渲染函数
+        function renderMathJax() {
+            if (window.MathJax) {
+                MathJax.typesetPromise().catch(function (err) {
+                    console.error('MathJax渲染错误:', err);
+                });
             }
-            
-            // 检查上下文
-            if (currentIndex > 0 && currentIndex < lines.length - 1) {
-                const prevLine = lines[currentIndex - 1].trim();
-                const nextLine = lines[currentIndex + 1].trim();
-                
-                // 如果前后行都是代码特征，当前行很可能也是代码
-                let prevIsCode = false;
-                let nextIsCode = false;
-                
-                for (const pattern of codePatterns) {
-                    if (pattern.test(prevLine)) prevIsCode = true;
-                    if (pattern.test(nextLine)) nextIsCode = true;
-                }
-                
-                if (prevIsCode && nextIsCode) {
-                    return true;
-                }
-            }
-            
-            return false;
         }
         
-        // 检测标题的函数
-        function detectHeading(line, prevLine) {
-            const trimmedLine = line.trim();
-            
-            // 检查是否是短句且没有标点符号结尾
-            if (trimmedLine.length > 0 && trimmedLine.length < 100 && 
-                !/[.。,，;；:：!！?？]$/.test(trimmedLine)) {
-                
-                // 检查是否有数字编号开头 (如 "1. 标题")
-                if (/^\d+[\.\s]+\w+/.test(trimmedLine)) {
-                    return true;
-                }
-                
-                // 检查是否是单独的一行，前后有空行
-                if (prevLine.trim() === '') {
-                    return true;
-                }
+        // 修改updateOutput函数，添加MathJax渲染
+        function updateOutput() {
+            const input = leftEditor.value;
+            if (mode === 'markdown-to-text') {
+                rightEditor.value = convertMarkdownToPlainText(input);
+            } else {
+                rightEditor.value = convertPlainTextToMarkdown(input);
             }
             
-            return false;
-        }
-        
-        // 检测标题级别的函数
-        function detectHeadingLevel(line, prevLine) {
-            const trimmedLine = line.trim();
-            
-            // 根据数字编号判断级别
-            if (/^\d+\./.test(trimmedLine)) {
-                const match = trimmedLine.match(/^(\d+)\./);
-                if (match) {
-                    const num = parseInt(match[1]);
-                    if (num === 1) return 2; // 一级编号通常是二级标题
-                    if (num >= 2) return 3; // 二级及以上编号通常是三级标题
-                }
-            }
-            
-            // 默认作为二级标题
-            return 2;
-        }
-        
-        // 检测列表项的函数
-        function detectListItem(line) {
-            const trimmedLine = line.trim();
-            
-            // 检查是否是短句
-            if (trimmedLine.length > 0 && trimmedLine.length < 200) {
-                // 检查是否有缩进
-                const indent = line.match(/^\s*/)[0].length;
-                
-                // 如果有缩进或者是简短的句子，可能是列表项
-                if (indent > 0 || trimmedLine.length < 100) {
-                    return true;
-                }
-            }
-            
-            return false;
+            // 渲染数学公式
+            setTimeout(renderMathJax, 100);
         }
 
         function copyOutput() {
@@ -652,7 +621,7 @@
                                 count >= CHAR_LIMIT*0.9 ? 'char-count near-limit' : 'char-count';
         }
 
-        // 初始化示例文本
+        // 修改默认示例文本，添加数学公式示例
         const defaultText = `## 1. 文本样式
 - ​**粗体文本**​ 会显示为文本
 - *斜体文本* 会显示为文本
@@ -674,7 +643,15 @@
 function example() {
     console.log("示例代码");
 }
-\`\`\``;
+\`\`\`
+
+## 5. 数学公式
+行内公式: $E=mc^2$
+
+块级公式:
+$$
+\\frac{d}{dx}\\left( \\int_{0}^{x} f(u)\\,du\\right)=f(x)
+$$`;
 
         leftEditor.value = defaultText;
         updateOutput();
